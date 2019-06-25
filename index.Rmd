@@ -39,34 +39,35 @@ class: center, middle, inverse
 </ru-blockquote>
 
 ---
-background-image: url('img/recopilacion.png')
+background-image: url('img/metodo.png')
 
 background-position: 50% 50%
 
-background-size: 600pt
+background-size: 800pt
 
-.center[Recopilación]
+.center[Método]
+
+
+<!-- background-image: url('img/red.png') -->
+
+<!-- background-position: 50% 50% -->
+
+<!-- background-size: 500pt -->
+
+<!-- .center[Diseño de la red] -->
+<!-- --- -->
+
+<!-- background-image: url('img/agrupamiento.png') -->
+
+<!-- background-position: 50% 50% -->
+
+<!-- background-size: 500pt -->
+
+<!-- .center[Agrupamiento] -->
+
+<!-- --- -->
+
 ---
-
-background-image: url('img/red.png')
-
-background-position: 50% 50%
-
-background-size: 500pt
-
-.center[Diseño de la red]
----
-
-background-image: url('img/agrupamiento.png')
-
-background-position: 50% 50%
-
-background-size: 500pt
-
-.center[Agrupamiento]
-
----
-
 class: center, middle, inverse
 
 # Ejemplo: Florida
@@ -407,7 +408,7 @@ background-position: 50% 15%
   
   |                                                                                                            |                                   |
   | :--------------------------------------------------------------------------------------------------------- | :-------------------------------- |
-  | <a href="mailto:jhernandez@ulpgc.es">.RUred[<i class="fa fa-paper-plane fa-fw"></i>]               | jhernandez@ulpgc.es       |
+  | <a href="mailto:juan.hernandez@ulpgc.es">.RUred[<i class="fa fa-paper-plane fa-fw"></i>]               | juan.hernandez@ulpgc.es       |
   | <a href="http://chrglez.github.io/suma2019.html">.RUred[<i class="fa fa-link fa-fw"></i>] | chrglez.github.io/suma2019 |
   | <a href="http://twitter.com/chrglez">.RUred[<i class="fab fa-twitter fa-fw"></i>]                          | @chrglez                         |
   | <a href="http://github.com/chrglez">.RUred[<i class="fab fa-github fa-fw"></i>]                          | @chrglez                       |
