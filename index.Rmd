@@ -1,0 +1,417 @@
+---
+title: "Método de segmentación del mercado turístico"
+subtitle: "usando datos masivos (big data) generados por los propios turistas"  
+author: "Juan María Hernández Guerra, Christian González Martel"
+date: '27 junio 2019'
+output:
+  xaringan::moon_reader:
+    mathjax: "https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_HTMLorMML"
+    lib_dir: libs
+    css: ["rutgers", "rutgers-fonts", "./custom.css"]
+    
+     
+    nature:
+      beforeInit: "js/ru_xaringan.js"
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+
+    includes:
+      in_header: "header.html"
+---
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+
+class: center, middle, inverse
+
+# Objetivo
+
+---
+  
+  
+
+<ru-blockquote>A partir de datos generados por turistas en plataformas de viajes online, se aplican métodos de agrupamientos en redes para realizar estudios de segmentación de mercado útiles a la industria. 
+</ru-blockquote>
+
+---
+background-image: url('img/recopilacion.png')
+
+background-position: 50% 50%
+
+background-size: 600pt
+
+.center[Recopilación]
+---
+
+background-image: url('img/red.png')
+
+background-position: 50% 50%
+
+background-size: 500pt
+
+.center[Diseño de la red]
+---
+
+background-image: url('img/agrupamiento.png')
+
+background-position: 50% 50%
+
+background-size: 500pt
+
+.center[Agrupamiento]
+
+---
+
+class: center, middle, inverse
+
+# Ejemplo: Florida
+
+---
+
+background-image: url('img/florida.png')
+
+background-position: 50% 50%
+
+background-size: 350pt
+
+> 254 571 revisiones de 10 664 atracciones
+
+---
+
+background-image: url('img/clasificacion.png')
+
+background-position: 50% 50%
+
+background-size: 500pt
+
+
+---
+
+background-image: url('img/cluster.png')
+
+background-position: 50% 50%
+
+background-size: 600pt
+
+---
+
+
+
+class: center, middle, inverse
+
+# Ejemplo: Maspalomas
+
+---
+
+class: center, middle
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(highcharter)
+
+
+activ <- read_rds('data/bd_actividades.Rds')
+activ_comen <- activ %>%
+      group_by(lugar) %>%
+      summarise(num_count =n())
+
+hoteles <- read_rds('data/file_hoteles.Rds')
+
+hotel_comen <- hoteles %>%
+      group_by(hotel) %>%
+      summarise(num_count =n())
+
+rest <- read_rds("data/bd_restaurantes.Rds")
+
+rest_comen <- rest %>%
+      group_by(lugar) %>%
+      summarise(num_count =n())
+
+
+comentarios <- bind_rows(list(Hoteles = hoteles,Restaurantes = rest, Atractivos = activ),.id= "origen")
+
+cols <- c("#056b9e","#88ba40","#e16b09")
+
+
+highchart() %>%
+  hc_chart(type = "column") %>%
+  hc_title(text = "Comentarios de hoteles, restaurantes y atractivos") %>% 
+  hc_subtitle(text = "Comentarios de hoteles (223) referidos al destino de Maspalomas.<br> Comentarios de Restaurantes (2.379) y Atractivos (624) referidos al destino de Gran Canaria. Total comentarios: 243.823")%>%
+  hc_xAxis(categories = c("Hoteles", "Restaurantes", "Atractivos")) %>% 
+  hc_add_series(data = c(nrow(hoteles),  nrow(rest),  nrow(activ)),name = "Comentarios", colorByPoint = TRUE) %>%
+  hc_colors(cols)
+```
+---
+
+class: center, middle
+
+```{r,  echo=FALSE, message=FALSE, warning=FALSE}
+datos_graf_anual <- comentarios %>%
+  mutate( origen = factor(origen,levels = c("Hoteles", "Restaurantes", "Atractivos")),
+    anyo = lubridate:::year(date_rev)) %>%
+  group_by(anyo,origen) %>%
+  summarise(n=n()) %>%
+  arrange(origen)
+
+
+hchart(datos_graf_anual, "bubble", hcaes(x = origen, y = anyo, z = n, group = origen), maxSize = "10%")  %>%
+  hc_colors(cols) %>%
+  hc_xAxis(title = "") %>%
+  hc_title(text = "Comentarios de hoteles, restaurantes y atractivos") %>%
+  hc_yAxis(title = "") 
+```
+---
+
+class: center, middle
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(igraph)
+servicios <- rbind(activ,rest)
+
+main_hot <- hoteles %>%
+      select(user_id,date_rev,hotel)
+main_serv <- servicios %>%
+      select(user_id,date_rev,lugar)
+
+myfunct <- function (x,y) {
+      y$date_rev = y$date_rev-x
+      return(y)
+}
+
+main_serv_ampliada <-lapply(-10:10,myfunct,y=main_serv) %>%
+      bind_rows()
+
+
+db_conjunta <- inner_join(main_hot,main_serv_ampliada,by=c("user_id","date_rev"))
+
+
+hotel_comen <- hotel_comen[hotel_comen$hotel %in% db_conjunta$hotel,]
+hotel_comen$tipo <- rep("Hotel",nrow(hotel_comen))
+
+activ_comen <- activ_comen[activ_comen$lugar %in% db_conjunta$lugar,]
+activ_comen$tipo <- rep("Actividad",nrow(activ_comen))
+
+rest_comen <- rest_comen[rest_comen$lugar %in% db_conjunta$lugar,]
+rest_comen$tipo <- rep("Restaurante",nrow(rest_comen))
+
+names(hotel_comen)[1] <- "lugar"
+inst_com <- rbind(hotel_comen,rest_comen,activ_comen)
+
+
+db_hotel_act <- db_conjunta %>%
+      group_by(hotel, lugar) %>% 
+      summarise(nop_act = n()) %>%
+      arrange(hotel,desc(nop_act)) 
+
+lista <- inst_com$lugar[duplicated(inst_com$lugar)]
+
+for (x in lista) {
+       indx <- which(inst_com$lugar==x)
+       
+       if (inst_com$tipo[indx[1]]=="Hotel"){
+             inst_com$lugar[indx[1]] <- paste0(inst_com$lugar[indx[1]],"_Hotel")
+             indx2 <- which(db_hotel_act$hotel==x)
+             db_hotel_act$hotel[indx2] <- paste0(db_hotel_act$hotel[indx2],"_Hotel")
+       }
+       else if (inst_com$tipo[indx[1]]=="Restaurante"){
+             inst_com$num_count[indx[1]] <- sum(inst_com$num_count[indx])
+             inst_com <- inst_com[-indx[2],]
+             
+       }
+}
+
+
+
+
+
+
+db_filtrada<- db_hotel_act %>% filter(nop_act > 15)
+
+inst_com_filtrada <- inst_com %>% filter(inst_com$lugar %in% db_filtrada$hotel | inst_com$lugar %in% db_filtrada$lugar)
+inst_com_filtrada$tipo <- factor(inst_com_filtrada$tipo, levels = c("Hotel","Restaurante","Actividad"))
+inst_com_filtrada$tipo.num <- as.numeric(inst_com_filtrada$tipo)
+
+
+net2 <- graph.data.frame(db_filtrada, inst_com_filtrada, directed=T)
+
+
+V(net2)$color <- cols[V(net2)$tipo.num]
+
+
+V(net2)$size <- V(net2)$num_count*0.005
+
+V(net2)$frame.color <- "black"
+V(net2)$label <- if_else(V(net2)$num_count>1500,inst_com_filtrada$lugar,NULL)
+
+E(net2)$arrow.mode <- 0
+E(net2)$width <- 1+E(net2)$nop_act*0.01
+
+
+l <- layout_with_fr(net2)
+
+par(mar=c(0,0,0,0))
+
+plot(net2,layout=l,
+     vertex.label.cex=0.75, 
+     vertex.label.family="Helvetica",
+     vertex.label.font=2,
+     vertex.shape="circle", 
+     vertex.label.color="black",
+     asp = 0)
+legend(x=-0.5, y=-0.98, c("Hotel","Restaurante", "Atractivo"), pch=21,col="black", pt.bg=cols, pt.cex=1.5, cex=1, bty="n", ncol=3,horiz=T)
+
+
+```
+
+---
+
+class: center, middle
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(networkD3)
+
+
+edgeList <- as.data.frame(get.edgelist(net2)) %>%
+  mutate(z = E(net2)$nop_act) %>%
+  setNames(c("SourceName", "TargetName", "Weight"))
+
+nodeList <- data.frame(ID = c(0:(vcount(net2) - 1)), 
+nName = V(net2)$name)
+
+getNodeID <- function(x){
+  which(x == V(net2)$name) - 1 
+}
+
+edgeList <- plyr::ddply(edgeList, .variables = c("SourceName", "TargetName", "Weight"), 
+                        function (x) data.frame(SourceID = getNodeID(x$SourceName), 
+TargetID = getNodeID(x$TargetName)))
+
+nodeList <- nodeList %>%
+  mutate(Size = V(net2)$num_count*0.05,
+         Tipo = V(net2)$tipo,
+         cols = cols[V(net2)$tipo.num])
+
+ColourScale <- 'd3.scaleOrdinal()
+            .domain(["Hotel", "Restaurante", "Actividad"])
+           .range(["#056b9e","#88ba40","#e16b09"]);' 
+
+forceNetwork(Links = edgeList, 
+                        Nodes = nodeList, 
+                        Source = "SourceID", 
+                        Target = "TargetID", 
+                        Value = "Weight", 
+                        NodeID = "nName", 
+                        Nodesize = "Size", 
+                        Group = "Tipo",
+                        fontSize = 20, 
+                        linkDistance = networkD3::JS("function(d) { return 0.5*d.value; }"),
+                        linkWidth = networkD3::JS("function(d) { return d.value/50; }"),
+                        opacity = 0.85, 
+                        zoom = TRUE, 
+                        opacityNoHover = 0.1,
+                        colourScale = JS(ColourScale))
+```
+
+---
+
+background-image: url('img/mapa.png')
+
+background-position: 50% 50%
+
+background-size: 350pt
+
+# Geolocalización
+
+
+---
+
+class: center, middle
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(leaflet)
+library(htmltools)
+library(geosphere)
+lonlat_hoteles <- readRDS("data/lonlat_network_hoteles.Rds")
+names(lonlat_hoteles)[3]<-"lugar"
+lonlat_hoteles[3,c("lon","lat")] <- c(27.7644221,-15.5743847)
+lonlat_actividades <- readRDS("data/lonlat_network_actividades.Rds")
+names(lonlat_actividades)[3]<-"lugar"
+
+lonlat_restaurantes <- readRDS("data/lonlat_network_restaurantes.Rds")
+names(lonlat_restaurantes)[3]<-"lugar"
+
+lonlat_db <- bind_rows(lonlat_hoteles,lonlat_actividades,lonlat_restaurantes, .id="tipo" )
+lonlat_db$tipo <- factor(lonlat_db$tipo,labels = c("Hotel","Restaurante","Atractivo"), levels = c(1,3,2))
+names(lonlat_db) <- c("tipo","lat","lon","lugar")
+
+masp_comen <- rbind(hotel_comen,rest_comen,activ_comen)
+
+lonlat_db2 <- left_join(lonlat_db,masp_comen,by="lugar") %>%
+  select(-tipo.y) %>%
+  mutate(radius = sqrt(num_count/pi))
+
+pal <- colorFactor(cols, domain = c("Hotel", "Restaurante", "Atractivo"))
+
+
+db_enlaces <- inner_join(db_filtrada, lonlat_db, by = c("hotel" = "lugar")) %>%
+      mutate(lon_origen = lat,
+             lat_origen = lon) %>%
+      select(lon_origen,lat_origen,hotel, lugar, nop_act) %>%
+      inner_join(lonlat_db) %>%
+      mutate(lon_destino = lat,
+             lat_destino = lon) %>%
+      select(lon_origen, lat_origen, lon_destino, lat_destino, hotel, lugar, nop_act)
+
+flows <- gcIntermediate(db_enlaces[,2:1], db_enlaces[,4:3], sp = TRUE, addStartEnd = TRUE)
+
+flows$counts <- db_enlaces$nop_act
+flows$origins <- db_enlaces$hotel
+flows$destinations <- db_enlaces$lugar
+
+hover <- paste0(flows$origins, " to ", 
+                flows$destinations, ': ', 
+                as.character(flows$counts))
+   
+leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(data = lonlat_db2,
+                   radius = lonlat_db2$radius/2,
+                   color = ~pal(tipo.x),
+                   label = ~htmlEscape(paste0(lugar,"(",num_count,")"))) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolylines(data = flows, weight = flows$count, label = hover, color = "#d1d5d7")
+
+
+```
+---
+
+
+
+class: title-slide-final, middle
+
+background-image: url(img/logos/finpresentacion_small.png)
+
+background-size: 800px
+
+background-position: 50% 15%
+  
+  # Gracias!
+  
+  
+  |                                                                                                            |                                   |
+  | :--------------------------------------------------------------------------------------------------------- | :-------------------------------- |
+  | <a href="mailto:jhernandez@ulpgc.es">.RUred[<i class="fa fa-paper-plane fa-fw"></i>]               | jhernandez@ulpgc.es       |
+  | <a href="http://chrglez.github.io/suma2019.html">.RUred[<i class="fa fa-link fa-fw"></i>] | chrglez.github.io/suma2019 |
+  | <a href="http://twitter.com/chrglez">.RUred[<i class="fab fa-twitter fa-fw"></i>]                          | @chrglez                         |
+  | <a href="http://github.com/chrglez">.RUred[<i class="fab fa-github fa-fw"></i>]                          | @chrglez                       |
+  
+  
+  
+  

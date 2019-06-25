@@ -1,0 +1,12 @@
+.title-slide {
+  background-image: url("img/logos/portada_semi.png");
+  background-position: 1% 1%;
+  background-size: auto;
+  background-color: rgba(0,0,0,0.2);
+  padding-left: 100px;  /* delete this for 4:3 aspect ratio */
+  filter: alpha(opacity=20); /* For IE8 and earlier */
+}
+
+
+
+
